@@ -68,6 +68,7 @@ void kash_help(char **args) {
         "  cd       Change the working directory.\n"
         "  exit     Exit the shell.\n"
         "  help     Print this help text.\n"
+        "  myhead   Prints first 10 lines of the file"
         ;
     printf("%s", helptext);
 }
