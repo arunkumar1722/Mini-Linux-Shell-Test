@@ -7,7 +7,18 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+char *helptext =
+        "The following commands are available:\n"
+        "  mycat      Prints the whole file. \n"
+        "  myhead     Prints first 10 lines of the file. \n"
+        "  mytail     Prints last 10 lines of the file. \n"
+        "  myhistory  Prints last 50 commands. \n"
+        "  help       Prints the manual.\n"
+        "  exit       Exit the shell.\n"
+        ;
+
 void my_exit(char **args) {
+    remove("history.txt");
     exit(0);
 }
 
@@ -108,16 +119,6 @@ void my_tail(char **args) {
 }
 
 void my_help(char **args) {
-    char *helptext =
-        "Welcome to My Shell \n"
-        "The following commands are available:\n"
-        "  mycat      Prints the whole file. \n"
-        "  myhead     Prints first 10 lines of the file. \n"
-        "  mytail     Prints last 10 lines of the file. \n"
-        "  myhistory  Prints last 50 commands. \n"
-        "  help       Prints the manual.\n"
-        "  exit       Exit the shell.\n"
-        ;
     printf("%s", helptext);
 }
 
@@ -229,6 +230,8 @@ void store_history(char *line) {
 }
 
 int main() {
+    printf("Welcome to My Shell \n");
+    printf("%s", helptext);
     while (true) {
         printf("\n> ");
         char *line = my_read_line();
