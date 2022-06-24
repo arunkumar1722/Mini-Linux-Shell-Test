@@ -1,7 +1,3 @@
-// -----------------------------------------------------------------------------
-// Kash: a simple command line shell.
-// -----------------------------------------------------------------------------
-
 #include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -11,29 +7,13 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-// -----------------------------------------------------------------------------
-// Built in commands.
-// -----------------------------------------------------------------------------
-
-// Exit the shell.
-void kash_exit(char **args) {
+void my_exit(char **args) {
     exit(0);
 }
 
-// Change the working directory.
-void kash_cd(char **args) {
+void my_head(char **args) {
     if (args[1] == NULL) {
-        fprintf(stderr, "kash: cd: missing argument\n");
-    } else {
-        if (chdir(args[1]) != 0) {
-            perror("kash: cd");
-        }
-    }
-}
-
-void kash_head(char **args) {
-    if (args[1] == NULL) {
-        fprintf(stderr, "kash: head: missing argument\n");
+        fprintf(stderr, "my: head: missing argument\n");
     } else {
         FILE *f;
       	f=fopen(args[1],"r");
@@ -42,14 +22,13 @@ void kash_head(char **args) {
       		printf("error in opening file");
           return;
       	}
-      	int n=11;
+      	int n=10;
       	char line[100];
       	while(fgets(line,sizeof(line),f))
       	{
       		if(n==0)
       		{
       			break;
-            
       		}
       		printf("%s",line);
       		n--;
@@ -60,44 +39,108 @@ void kash_head(char **args) {
         
 }
 
-// Print the shell's help text.
-void kash_help(char **args) {
+void my_cat(char **args) {
+    if (args[1] == NULL) {
+        fprintf(stderr, "my: cat: missing argument\n");
+    } else {
+        FILE *f;
+        char c;
+      	f=fopen(args[1],"r");
+      	if(f==NULL)
+      	{
+      		printf("error in opening file");
+          return;
+      	}
+      	// Read contents from file
+        c = fgetc(f);
+        while (c != EOF)
+        {
+            printf ("%c", c);
+            c = fgetc(f);
+        }
+      	fclose(f);
+      }
+        
+}
+
+void my_tail(char **args) {
+  if (args[1] == NULL && strcmp(args[0], "mytail")==0) {
+        fprintf(stderr, "my: tail: missing argument\n");
+  } else {
+        FILE *f;
+        char c;
+        int n = 10;
+        if (strcmp(args[0], "myhistory")==0) {
+          n = 50;
+          f=fopen("history.txt","r");
+        } else {
+          f=fopen(args[1],"r");
+        }
+      	if(f==NULL)
+      	{
+      		printf("error in opening file");
+          return;
+      	}
+        int count = 0;
+        unsigned long long pos;
+        char str[2*100];
+
+        if (fseek(f, 0, SEEK_END))
+            perror("fseek() failed");
+        else
+        {
+            pos = ftell(f);
+            while (pos)
+            {
+                if (!fseek(f, --pos, SEEK_SET))
+                {
+                    if (fgetc(f) == '\n')
+                        if (++count == n)
+                            break;
+                }
+                else
+                    perror("fseek() failed");
+            }
+            while (fgets(str, sizeof(str), f))
+                printf("%s", str);
+        }
+    }
+}
+
+void my_help(char **args) {
     char *helptext =
-        "Kash - the Kinda Aimless Shell. "
-        "The following commands are built in:\n"
-        "  cd       Change the working directory.\n"
-        "  exit     Exit the shell.\n"
-        "  help     Print this help text.\n"
-        "  myhead   Prints first 10 lines of the file"
+        "Welcome to My Shell \n"
+        "The following commands are available:\n"
+        "  mycat      Prints the whole file. \n"
+        "  myhead     Prints first 10 lines of the file. \n"
+        "  mytail     Prints last 10 lines of the file. \n"
+        "  myhistory  Prints last 50 commands. \n"
+        "  help       Prints the manual.\n"
+        "  exit       Exit the shell.\n"
         ;
     printf("%s", helptext);
 }
 
-// A builtin instance associates a command name with a handler function.
 struct builtin {
     char *name;
     void (*func)(char **args);
 };
 
-// Array of built in commands.
 struct builtin builtins[] = {
-    {"help", kash_help},
-    {"exit", kash_exit},
-    {"cd", kash_cd},
-    {"myhead", kash_head},
+    {"help", my_help},
+    {"exit", my_exit},
+    {"myhead", my_head},
+    {"mycat", my_cat},
+    {"mytail", my_tail},
+    {"myhistory", my_tail},
 };
 
-// Returns the number of registered commands.
-int kash_num_builtins() {
+int my_num_builtins() {
     return sizeof(builtins) / sizeof(struct builtin);
 }
 
-// -----------------------------------------------------------------------------
-// Process/command launcher.
-// -----------------------------------------------------------------------------
-
-void kash_exec(char **args) {
-    for (int i = 0; i < kash_num_builtins(); i++) {
+void my_exec(char **args) {
+    for (int i = 0; i < my_num_builtins(); i++) {
         if (strcmp(args[0], builtins[i].name) == 0) {
             builtins[i].func(args);
             return;
@@ -108,7 +151,7 @@ void kash_exec(char **args) {
 
     if (child_pid == 0) {
         execvp(args[0], args);
-        perror("kash");
+        perror("my");
         exit(1);
     } else if (child_pid > 0) {
         int status;
@@ -116,25 +159,17 @@ void kash_exec(char **args) {
             waitpid(child_pid, &status, WUNTRACED);
         } while (!WIFEXITED(status) && !WIFSIGNALED(status));
     } else {
-        perror("kash");
+        perror("my");
     }
 }
 
-// -----------------------------------------------------------------------------
-// Input parser.
-// -----------------------------------------------------------------------------
-
-// Tokenize a string, splitting on whitespace characters. Leading and trailing
-// whitespace is ignored. Consecutive whitespace characters are treated as a
-// single delimiter. The return value is a NULL terminated array of string
-// pointers which needs to be freed once we're finished with it.
-char** kash_split_line(char *line) {
+char** my_split_line(char *line) {
     int length = 0;
     int capacity = 16;
 
     char **tokens = malloc(capacity * sizeof(char*));
     if (!tokens) {
-        perror("kash");
+        perror("my");
         exit(1);
     }
 
@@ -149,7 +184,7 @@ char** kash_split_line(char *line) {
             capacity = (int) (capacity * 1.5);
             tokens = realloc(tokens, capacity * sizeof(char*));
             if (!tokens) {
-                perror("kash");
+                perror("my");
                 exit(1);
             }
         }
@@ -161,34 +196,47 @@ char** kash_split_line(char *line) {
     return tokens;
 }
 
-// Read a single line of input from stdin. The return value is a string pointer
-// which needs to be freed once we're finished with it.
-char* kash_read_line() {
+char* my_read_line() {
     char *line = NULL;
     size_t buflen = 0;
     errno = 0;
     ssize_t strlen = getline(&line, &buflen, stdin);
     if (strlen < 0) {
         if (errno) {
-            perror("kash");
+            perror("my");
         }
         exit(1);
     }
     return line;
 }
 
-// -----------------------------------------------------------------------------
-// Entry point.
-// -----------------------------------------------------------------------------
+void store_history(char *line) {
+    FILE *filePointer ;
+    filePointer = fopen("history.txt", "a+") ;
+    if ( filePointer == NULL )
+    {
+        printf( "failed to open history" ) ;
+    }
+    else
+    {
+        if ( strlen ( line ) > 0 )
+        {
+            fputs("\n", filePointer) ;
+            fputs(line, filePointer) ;
+        }
+        fclose(filePointer) ;
+    }
+}
 
 int main() {
     while (true) {
         printf("\n> ");
-        char *line = kash_read_line();
-        char **tokens = kash_split_line(line);
+        char *line = my_read_line();
+        store_history(line);
+        char **tokens = my_split_line(line);
 
         if (tokens[0] != NULL) {
-            kash_exec(tokens);
+            my_exec(tokens);
         }
 
         free(tokens);

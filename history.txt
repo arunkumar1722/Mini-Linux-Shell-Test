@@ -1,0 +1,10 @@
+
+help
+
+mycat sample.txt
+
+myhead sample.txt
+
+mytail sample.txt
+
+myhistory
